@@ -1,0 +1,25 @@
+_BASE_: [
+  '../PaddleDetection/configs/ppyoloe/ppyoloe_crn_s_80e_coco.yml'
+]
+
+dataset:
+  train:
+    image_dir: images/train
+    anno_path: annotations/instances_train.json
+    dataset_dir: /kaggle/input/fbd-sv-2024
+  val:
+    image_dir: images/val
+    anno_path: annotations/instances_val.json
+    dataset_dir: /kaggle/input/fbd-sv-2024
+  test:
+    image_dir: images/test
+    anno_path: annotations/instances_test.json
+    dataset_dir: /kaggle/input/fbd-sv-2024
+
+num_classes: 1   # change if bird species > 1
+
+epoch: 80
+learning_rate: 0.001
+
+TrainReader:
+  batch_size: 8
