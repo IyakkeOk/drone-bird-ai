@@ -1,9 +1,3 @@
-"""
-PP-YOLOE-S Training Script
-Back-end: PaddlePaddle (PaddleDetection)
-Environment: Kaggle GPU
-"""
-
 import os
 import subprocess
 
@@ -23,10 +17,8 @@ def setup_paddledetection():
         run("git clone https://github.com/PaddlePaddle/PaddleDetection.git")
 
     os.chdir(PADDLE_DET_DIR)
-
     run("pip install -r requirements.txt")
     run("python setup.py install")
-
     os.chdir("..")
 
 
@@ -34,10 +26,11 @@ def train():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     run(
-        f"python {PADDLE_DET_DIR}/tools/train.py "
-        f"-c {CONFIG_FILE} "
+        f"cd PaddleDetection && "
+        f"python tools/train.py "
+        f"-c ../{CONFIG_FILE} "
         f"--eval "
-        f"-o output_dir={OUTPUT_DIR}"
+        f"-o output_dir=../{OUTPUT_DIR}"
     )
 
 

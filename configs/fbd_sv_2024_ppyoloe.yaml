@@ -1,5 +1,5 @@
 _BASE_: [
-  '../PaddleDetection/configs/ppyoloe/ppyoloe_crn_s_80e_coco.yml'
+  '../PaddleDetection/configs/ppyoloe/ppyoloe_crn_s_300e_coco.yml'
 ]
 
 dataset:
