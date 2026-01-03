@@ -1,0 +1,30 @@
+# Base model (PaddleDetection default)
+_BASE_: [
+  '../PaddleDetection/configs/ppyoloe/ppyoloe_crn_s_300e_coco.yml'
+]
+
+# Dataset paths (Kaggle Input)
+dataset:
+  train:
+    image_dir: /kaggle/input/fbd-sv-2024/images/train
+    anno_path: /kaggle/input/fbd-sv-2024/annotations/instances_train.json
+  val:
+    image_dir: /kaggle/input/fbd-sv-2024/images/val
+    anno_path: /kaggle/input/fbd-sv-2024/annotations/instances_val.json
+  test:
+    image_dir: /kaggle/input/fbd-sv-2024/images/test
+    anno_path: /kaggle/input/fbd-sv-2024/annotations/instances_test.json
+
+# Only 1 class (bird) – avoids one-hot errors
+num_classes: 1
+
+# Training settings
+epoch: 80
+learning_rate: 0.001
+
+# Batch size
+TrainReader:
+  batch_size: 8
+
+# Output directory
+output_dir: /kaggle/working/outputs/ppyoloe_s
