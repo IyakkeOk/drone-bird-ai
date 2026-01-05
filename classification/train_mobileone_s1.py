@@ -8,6 +8,15 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 from sklearn.metrics import accuracy_score, classification_report
 
+import sys
+
+# --------------------------------------------------
+# Ensure project root is on PYTHONPATH
+# --------------------------------------------------
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 from classification.datasets.cub200 import CUB200Dataset
 
 
