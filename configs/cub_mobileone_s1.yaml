@@ -1,6 +1,7 @@
-data_root: /input/cub-200-2011/CUB_200_2011
-epochs: 30
+data_root: /kaggle/input/cub2002011
+
 batch_size: 32
+epochs: 30
 lr: 0.0003
 weight_decay: 0.0001
 
