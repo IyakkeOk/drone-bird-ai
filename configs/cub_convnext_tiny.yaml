@@ -1,0 +1,13 @@
+# Dataset
+#data_root: /kaggle/input/cub2002011/CUB_200_2011
+data_root: /kaggle/input/cub2002011
+
+# Training
+epochs: 30
+batch_size: 32
+lr: 0.0003
+weight_decay: 0.05
+
+# Normalization (ImageNet)
+mean: [0.485, 0.456, 0.406]
+std:  [0.229, 0.224, 0.225]
