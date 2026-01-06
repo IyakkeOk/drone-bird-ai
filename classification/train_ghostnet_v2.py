@@ -159,7 +159,12 @@ def compute_statistical_summary(cm):
 # Main Training & Evaluation Pipeline
 # --------------------------------------------------
 def main():
-    cfg = load_config("../configs/cub_ghostnet_v2.yaml")
+    # cfg = load_config("../configs/cub_ghostnet_v2.yaml")
+    SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+    CONFIG_PATH = os.path.join(SCRIPT_DIR, "..", "configs", "cub_ghostnet_v2.yaml")
+
+    cfg = load_config(CONFIG_PATH)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
