@@ -29,7 +29,20 @@ def load_config(cfg_path):
         return yaml.safe_load(f)
 
 
-def plot_confusion_matrix(cm, class_names, save_path="confusion_matrix.png"):
+# --------------------------------------------------
+# Results directory setup (ADDED)
+# --------------------------------------------------
+RESULTS_DIR = "results"
+CKPT_DIR = os.path.join(RESULTS_DIR, "checkpoints")
+METRICS_DIR = os.path.join(RESULTS_DIR, "metrics")
+PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
+TABLES_DIR = os.path.join(RESULTS_DIR, "tables")
+
+for d in [RESULTS_DIR, CKPT_DIR, METRICS_DIR, PLOTS_DIR, TABLES_DIR]:
+    os.makedirs(d, exist_ok=True)
+
+
+def plot_confusion_matrix(cm, class_names, save_path):
     """Plot and save a confusion matrix heatmap."""
     plt.figure(figsize=(16, 14))
     sns.heatmap(cm, cmap="Blues", cbar=True)
@@ -41,7 +54,7 @@ def plot_confusion_matrix(cm, class_names, save_path="confusion_matrix.png"):
     plt.close()
 
 
-def plot_error_distribution(errors, save_path="error_distribution.png"):
+def plot_error_distribution(errors, save_path):
     """Plot histogram of number of misclassified samples per class."""
     plt.figure(figsize=(12, 6))
     plt.bar(range(len(errors)), errors)
@@ -57,7 +70,6 @@ def top_k_misclassifications(cm, class_names, k=3):
     """Compute top-K misclassified classes per true class."""
     top_k = {}
     for i, row in enumerate(cm):
-        # zero out diagonal (correct predictions)
         misclass_row = row.copy()
         misclass_row[i] = 0
         top_indices = misclass_row.argsort()[::-1][:k]
@@ -74,16 +86,15 @@ def compute_statistical_summary(cm):
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
         recalls.append(recall * 100)
     recalls = np.array(recalls)
-    summary = {
-        "Mean class recall": np.mean(recalls),
-        "Median class recall": np.median(recalls),
-        "Worst class recall": np.min(recalls),
-        "Classes with recall < 90%": np.sum(recalls < 90)
+    return {
+        "Mean class recall (%)": float(np.mean(recalls)),
+        "Median class recall (%)": float(np.median(recalls)),
+        "Worst class recall (%)": float(np.min(recalls)),
+        "Classes with recall < 90%": int(np.sum(recalls < 90))
     }
-    return summary
 
 
-def plot_per_class_f1(f1_scores, save_path="per_class_f1.png"):
+def plot_per_class_f1(f1_scores, save_path):
     """Plot bar chart of per-class F1 scores."""
     plt.figure(figsize=(16, 6))
     plt.bar(range(len(f1_scores)), f1_scores)
@@ -95,7 +106,7 @@ def plot_per_class_f1(f1_scores, save_path="per_class_f1.png"):
     plt.close()
 
 
-def plot_loss_curves(train_losses, val_accs, save_path_loss="training_loss.png", save_path_acc="validation_acc.png"):
+def plot_loss_curves(train_losses, val_accs, save_path_loss, save_path_acc):
     """Plot training loss and validation accuracy curves."""
     epochs = range(1, len(train_losses) + 1)
 
@@ -110,7 +121,7 @@ def plot_loss_curves(train_losses, val_accs, save_path_loss="training_loss.png",
     plt.close()
 
     plt.figure()
-    plt.plot(epochs, val_accs, marker='o', color='green', label='Validation Accuracy')
+    plt.plot(epochs, val_accs, marker='o', label='Validation Accuracy')
     plt.xlabel("Epoch")
     plt.ylabel("Accuracy")
     plt.title("Validation Accuracy Curve")
@@ -152,8 +163,6 @@ def main():
                               num_workers=4, pin_memory=True)
     val_loader = DataLoader(val_ds, batch_size=cfg["batch_size"], shuffle=False, num_workers=4)
 
-    print(f"Train samples: {len(train_ds)}, Validation samples: {len(val_ds)}")
-
     # -----------------------------
     # Model: MobileOne-S1
     # -----------------------------
@@ -163,8 +172,8 @@ def main():
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg["epochs"])
 
     best_acc = 0.0
-    train_losses = []
-    val_accs = []
+    train_losses, val_accs = [], []
+    epoch_log = []
 
     # -----------------------------
     # Training Loop
@@ -173,108 +182,83 @@ def main():
         model.train()
         running_loss = 0.0
 
-        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch + 1}"):
+        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}"):
             images, labels = images.to(device), labels.to(device)
-
             optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
+            loss = criterion(model(images), labels)
             loss.backward()
             optimizer.step()
-
             running_loss += loss.item()
 
         scheduler.step()
 
-        # -----------------------------
-        # Validation
-        # -----------------------------
         model.eval()
         preds, gts = [], []
-
         with torch.no_grad():
             for images, labels in val_loader:
                 images = images.to(device)
-                outputs = model(images)
-                pred = torch.argmax(outputs, dim=1).cpu().numpy()
+                pred = torch.argmax(model(images), dim=1).cpu().numpy()
                 preds.extend(pred)
                 gts.extend(labels.numpy())
 
         acc = accuracy_score(gts, preds)
         avg_loss = running_loss / len(train_loader)
+
         train_losses.append(avg_loss)
         val_accs.append(acc)
 
-        print(f"Epoch {epoch + 1} | Loss: {avg_loss:.4f} | Val Acc: {acc:.4f}")
+        epoch_log.append({
+            "epoch": epoch + 1,
+            "train_loss": avg_loss,
+            "val_accuracy": acc
+        })
+
+        pd.DataFrame(epoch_log).to_csv(
+            os.path.join(METRICS_DIR, "epoch_metrics.csv"), index=False
+        )
+
+        torch.save(
+            model.state_dict(),
+            os.path.join(CKPT_DIR, f"epoch_{epoch+1:03d}.pth")
+        )
 
         if acc > best_acc:
             best_acc = acc
-            torch.save(model.state_dict(), "mobileone_s1_cub_best.pth")
+            torch.save(
+                model.state_dict(),
+                os.path.join(CKPT_DIR, "best_model.pth")
+            )
+
+        print(f"Epoch {epoch+1} | Loss: {avg_loss:.4f} | Val Acc: {acc:.4f}")
 
     # -----------------------------
-    # Final Metrics & PhD-level Analysis
+    # Final Metrics & Analysis
     # -----------------------------
-    print("\nFinal Classification Report:")
-    print(classification_report(gts, preds, digits=4))
-
-    # Confusion matrix
     cm = confusion_matrix(gts, preds)
     class_names = [f"Class_{i}" for i in range(200)]
 
-    # Save full confusion matrix as CSV
-    pd.DataFrame(cm, index=class_names, columns=class_names).to_csv("confusion_matrix_full.csv")
+    pd.DataFrame(cm, index=class_names, columns=class_names).to_csv(
+        os.path.join(TABLES_DIR, "confusion_matrix_full.csv")
+    )
 
-    # Heatmap of confusion matrix
-    plot_confusion_matrix(cm, class_names, save_path="confusion_matrix_heatmap.png")
+    plot_confusion_matrix(cm, class_names,
+                          os.path.join(PLOTS_DIR, "confusion_matrix_heatmap.png"))
 
-    # Error distribution
     errors = cm.sum(axis=1) - np.diag(cm)
-    plot_error_distribution(errors, save_path="error_distribution.png")
+    plot_error_distribution(errors,
+                            os.path.join(PLOTS_DIR, "error_distribution.png"))
 
-    # Top-3 misclassifications per class
-    top3_miscls = top_k_misclassifications(cm, class_names, k=3)
-    top3_df = pd.DataFrame.from_dict(top3_miscls, orient='index')
-    top3_df.to_csv("top3_misclassifications.csv")
-    print("\nTop-3 misclassifications saved to top3_misclassifications.csv")
-
-    # Statistical summary
-    summary = compute_statistical_summary(cm)
-    print("\nStatistical Summary of Class-level Performance:")
-    for k, v in summary.items():
-        print(f"{k}: {v:.2f}%")
-
-    # -----------------------------
-    # Top-K Accuracy
-    # -----------------------------
-    y_true = np.array(gts)
-    y_pred_probs = np.zeros((len(y_true), 200))
-    model.eval()
-    with torch.no_grad():
-        for images, labels in val_loader:
-            images = images.to(device)
-            outputs = model(images)
-            probs = torch.nn.functional.softmax(outputs, dim=1).cpu().numpy()
-            y_pred_probs[labels.numpy(), :] = probs  # Fill for Top-K computation
-
-    top1 = top_k_accuracy_score(y_true, y_pred_probs, k=1)
-    top3 = top_k_accuracy_score(y_true, y_pred_probs, k=3)
-    top5 = top_k_accuracy_score(y_true, y_pred_probs, k=5)
-    print(f"\nTop-1 Accuracy: {top1 * 100:.2f}%")
-    print(f"Top-3 Accuracy: {top3 * 100:.2f}%")
-    print(f"Top-5 Accuracy: {top5 * 100:.2f}%")
-
-    # -----------------------------
-    # Per-class F1 Score Plot
-    # -----------------------------
     f1_scores = f1_score(gts, preds, average=None) * 100
-    plot_per_class_f1(f1_scores, save_path="per_class_f1.png")
+    plot_per_class_f1(f1_scores,
+                      os.path.join(PLOTS_DIR, "per_class_f1.png"))
 
-    # -----------------------------
-    # Training & Validation Curves
-    # -----------------------------
-    plot_loss_curves(train_losses, val_accs, save_path_loss="training_loss.png", save_path_acc="validation_acc.png")
+    plot_loss_curves(train_losses, val_accs,
+                     os.path.join(PLOTS_DIR, "training_loss.png"),
+                     os.path.join(PLOTS_DIR, "validation_acc.png"))
 
-    print("\nAll metrics, Top-K, F1 plot, and curves saved to working directory.")
+    summary = compute_statistical_summary(cm)
+    with open(os.path.join(METRICS_DIR, "final_summary.yaml"), "w") as f:
+        yaml.dump(summary, f)
 
 
 if __name__ == "__main__":
