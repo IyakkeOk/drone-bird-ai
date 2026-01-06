@@ -32,7 +32,9 @@ def load_config(cfg_path):
 # --------------------------------------------------
 # Results directory setup (ADDED)
 # --------------------------------------------------
-RESULTS_DIR = "results"
+# RESULTS_DIR = "results"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = os.path.join(SCRIPT_DIR, "results")
 CKPT_DIR = os.path.join(RESULTS_DIR, "checkpoints")
 METRICS_DIR = os.path.join(RESULTS_DIR, "metrics")
 PLOTS_DIR = os.path.join(RESULTS_DIR, "plots")
@@ -40,6 +42,8 @@ TABLES_DIR = os.path.join(RESULTS_DIR, "tables")
 
 for d in [RESULTS_DIR, CKPT_DIR, METRICS_DIR, PLOTS_DIR, TABLES_DIR]:
     os.makedirs(d, exist_ok=True)
+
+print(f"[INFO] Results will be saved to: {RESULTS_DIR}")
 
 
 def plot_confusion_matrix(cm, class_names, save_path):
@@ -259,6 +263,10 @@ def main():
     summary = compute_statistical_summary(cm)
     with open(os.path.join(METRICS_DIR, "final_summary.yaml"), "w") as f:
         yaml.dump(summary, f)
+
+    print("\nFinal Statistical Summary:")
+    for k, v in summary.items():
+        print(f"{k}: {v}")
 
 
 if __name__ == "__main__":
