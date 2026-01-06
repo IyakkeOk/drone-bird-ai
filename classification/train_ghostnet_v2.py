@@ -21,7 +21,7 @@ PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-from datasets.cub200 import CUB200Dataset
+from .datasets.cub200 import CUB200Dataset
 
 
 def load_config(cfg_path):
