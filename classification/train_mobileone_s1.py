@@ -82,19 +82,54 @@ def top_k_misclassifications(cm, class_names, k=3):
 
 
 def compute_statistical_summary(cm):
-    """Compute mean, median, worst class recall and count of classes < 90% recall."""
-    recalls = []
-    for i in range(len(cm)):
+    """
+    Compute macro-level statistical summaries for a multi-class confusion matrix.
+    Includes precision, recall, F1-score, and overall accuracy.
+    """
+    num_classes = cm.shape[0]
+
+    precisions, recalls, f1s = [], [], []
+
+    for i in range(num_classes):
         tp = cm[i, i]
+        fp = cm[:, i].sum() - tp
         fn = cm[i, :].sum() - tp
+
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
         recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1 = (
+            2 * precision * recall / (precision + recall)
+            if (precision + recall) > 0
+            else 0.0
+        )
+
+        precisions.append(precision * 100)
         recalls.append(recall * 100)
+        f1s.append(f1 * 100)
+
+    precisions = np.array(precisions)
     recalls = np.array(recalls)
+    f1s = np.array(f1s)
+
+    overall_accuracy = np.trace(cm) / np.sum(cm) * 100
+
     return {
+        "Overall accuracy (%)": float(overall_accuracy),
+
+        "Mean class precision (%)": float(np.mean(precisions)),
+        "Median class precision (%)": float(np.median(precisions)),
+        "Worst class precision (%)": float(np.min(precisions)),
+
         "Mean class recall (%)": float(np.mean(recalls)),
         "Median class recall (%)": float(np.median(recalls)),
         "Worst class recall (%)": float(np.min(recalls)),
-        "Classes with recall < 90%": int(np.sum(recalls < 90))
+
+        "Mean class F1-score (%)": float(np.mean(f1s)),
+        "Median class F1-score (%)": float(np.median(f1s)),
+        "Worst class F1-score (%)": float(np.min(f1s)),
+
+        "Classes with recall < 90%": int(np.sum(recalls < 90)),
+        "Classes with F1-score < 90%": int(np.sum(f1s < 90)),
     }
 
 
